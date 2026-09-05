@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart QR Access — Client Live Integration & Testing Portal</title>
+    <title>Smart QR2 Access — Client Live Integration & Testing Portal</title>
     <!-- Google Fonts & QRCode.js Library -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -789,92 +789,155 @@ eventSource.addEventListener(<span style="color:#34D399">'token_used'</span>, (e
             }
         }
 
-        // ── 2. REAL-TIME SSE STREAM ────────────────────────────────────
-        function startSseConnection() {
+        // ── 2. REAL-TIME SSE STREAM (Fetch ReadableStream for Ngrok Header Support) ──
+        let sseAbortController = null;
+
+        function handleSseEvent(eventName, dataStr) {
+            if (eventName === 'connected') {
+                logToTerminal('🟢 Handshake confirmed by SSE server.', 'success');
+                return;
+            }
+
+            try {
+                const payload = JSON.parse(dataStr);
+                if (payload.error) {
+                    logToTerminal(`❌ SSE Server Error: ${payload.error}`, 'error');
+                    return;
+                }
+
+                const d = payload.data || {};
+                if (eventName === 'token_used' || payload.type === 'token_used') {
+                    logToTerminal(`🚨 <strong>GATE SCAN EVENT RECEIVED:</strong> Token [${d.token}] scanned at device [${d.device_id || 'GATE_01'}] Result: <strong>${d.result || 'ALLOWED'}</strong>`, 'success');
+                } else if (eventName === 'gate_scan' || payload.type === 'gate_scan') {
+                    logToTerminal(`🚨 <strong>GATE SCAN DETECTED:</strong> Token: ${d.token || 'N/A'} Status: ${d.status || 'SCANNED'}`, 'success');
+                } else {
+                    logToTerminal(`🚨 Event (${eventName}): ${dataStr}`, 'success');
+                }
+            } catch (err) {
+                logToTerminal(`🚨 Event (${eventName}): ${dataStr}`, 'success');
+            }
+        }
+
+        async function startSseConnection() {
             const baseUrl = document.getElementById('server_url').value.replace(/\/+$/, '');
             const apiKey  = document.getElementById('api_key').value.trim();
 
-            const params = [];
-            if (apiKey) params.push(`api_key=${encodeURIComponent(apiKey)}`);
-            params.push(`ngrok-skip-browser-warning=true`);
-
-            const sseUrl = `${baseUrl}/developer/events?${params.join('&')}`;
-
             stopSseConnection();
 
-            const dot = document.getElementById('sseStatusDot');
+            const dot  = document.getElementById('sseStatusDot');
             const text = document.getElementById('sseStatusText');
 
-            dot.className = 'status-dot status-connecting';
+            dot.className  = 'status-dot status-connecting';
             text.innerText = 'Connecting...';
+
+            let sseUrl = `${baseUrl}/developer/events`;
+            const params = [];
+            if (apiKey) params.push(`api_key=${encodeURIComponent(apiKey)}`);
+            params.push(`ngrok-skip-browser-warning=1`);
+
+            sseUrl += `?${params.join('&')}`;
+
             logToTerminal(`Connecting to SSE stream at ${sseUrl}...`);
 
+            const controller = new AbortController();
+            sseAbortController = controller;
+
             try {
-                eventSource = new EventSource(sseUrl);
+                const response = await fetch(sseUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'text/event-stream',
+                        'ngrok-skip-browser-warning': '1'
+                    },
+                    signal: controller.signal
+                });
 
-                eventSource.onopen = function () {
-                    dot.className = 'status-dot status-on';
-                    text.innerText = 'Connected 🟢';
-                    logToTerminal('🟢 Connected to SSE Stream! Listening for live gate events...', 'success');
-                    document.getElementById('btnConnectSse').disabled = true;
-                    document.getElementById('btnDisconnectSse').disabled = false;
-                };
-
-                eventSource.onmessage = function (e) {
+                if (!response.ok) {
+                    let errMsg = `HTTP Status ${response.status}`;
                     try {
-                        const payload = JSON.parse(e.data);
-                        if (payload.error) {
-                            logToTerminal(`❌ SSE Server Error: ${payload.error}`, 'error');
+                        const errJson = await response.json();
+                        if (errJson.message || errJson.error) errMsg = errJson.message || errJson.error;
+                    } catch(e) {}
+                    dot.className  = 'status-dot status-off';
+                    text.innerText = 'Error / Unauthorized';
+                    logToTerminal(`❌ SSE Connection Failed: ${errMsg}`, 'error');
+                    return;
+                }
+
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('text/event-stream')) {
+                    dot.className  = 'status-dot status-off';
+                    text.innerText = 'MIME Error';
+                    logToTerminal(`❌ Expected text/event-stream but server returned ${contentType}.`, 'error');
+                    return;
+                }
+
+                dot.className  = 'status-dot status-on';
+                text.innerText = 'Connected 🟢';
+                logToTerminal('🟢 Connected to SSE Stream! Listening for live gate events...', 'success');
+                document.getElementById('btnConnectSse').disabled = true;
+                document.getElementById('btnDisconnectSse').disabled = false;
+
+                const reader  = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer    = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop() || ''; // keep trailing incomplete chunk
+
+                    for (const chunk of lines) {
+                        if (!chunk.trim()) continue;
+
+                        let eventName = 'message';
+                        let dataStr   = '';
+
+                        for (const line of chunk.split('\n')) {
+                            if (line.startsWith('event:')) {
+                                eventName = line.substring(6).trim();
+                            } else if (line.startsWith('data:')) {
+                                dataStr += line.substring(5).trim();
+                            }
                         }
-                    } catch(err) {}
-                };
 
-                eventSource.addEventListener('connected', function (e) {
-                    logToTerminal('🟢 Handshake confirmed by SSE server.', 'success');
-                });
-
-                eventSource.addEventListener('token_used', function (e) {
-                    try {
-                        const payload = JSON.parse(e.data);
-                        const d = payload.data || {};
-                        logToTerminal(`🚨 <strong>GATE SCAN EVENT RECEIVED:</strong> Token [${d.token}] scanned at device [${d.device_id || 'GATE_01'}] Result: <strong>${d.result || 'ALLOWED'}</strong>`, 'success');
-                    } catch (err) {
-                        logToTerminal(`🚨 Live SSE Event: ${e.data}`, 'success');
+                        if (dataStr) {
+                            handleSseEvent(eventName, dataStr);
+                        }
                     }
-                });
-
-                eventSource.addEventListener('gate_scan', function (e) {
-                    try {
-                        const payload = JSON.parse(e.data);
-                        logToTerminal(`🚨 <strong>GATE SCAN DETECTED:</strong> Token: ${payload.data.token || 'N/A'} Status: ${payload.data.status || 'SCANNED'}`, 'success');
-                    } catch (err) {
-                        logToTerminal(`🚨 Gate Scan Event: ${e.data}`, 'success');
-                    }
-                });
-
-                eventSource.onerror = function (err) {
-                    dot.className = 'status-dot status-off';
-                    text.innerText = 'Retrying / Error';
-                    logToTerminal('⚠️ SSE connection interrupted or requires session cookie. Auto-reconnecting...', 'warn');
-                };
+                }
 
             } catch (err) {
-                dot.className = 'status-dot status-off';
-                text.innerText = 'Failed';
-                logToTerminal(`❌ SSE Initialization Error: ${err.message}`, 'error');
+                if (err.name === 'AbortError') {
+                    logToTerminal('Disconnected from SSE stream.');
+                } else {
+                    dot.className  = 'status-dot status-off';
+                    text.innerText = 'Disconnected / Error';
+                    logToTerminal(`⚠️ SSE Connection Interrupted: ${err.message}`, 'warn');
+                }
+            } finally {
+                document.getElementById('btnConnectSse').disabled = false;
+                document.getElementById('btnDisconnectSse').disabled = true;
             }
         }
 
         function stopSseConnection() {
+            if (sseAbortController) {
+                sseAbortController.abort();
+                sseAbortController = null;
+            }
             if (eventSource) {
                 eventSource.close();
                 eventSource = null;
-                const dot = document.getElementById('sseStatusDot');
-                const text = document.getElementById('sseStatusText');
-                dot.className = 'status-dot status-off';
-                text.innerText = 'Disconnected';
-                logToTerminal('Disconnected from SSE stream.');
             }
+            const dot  = document.getElementById('sseStatusDot');
+            const text = document.getElementById('sseStatusText');
+            dot.className  = 'status-dot status-off';
+            text.innerText = 'Disconnected';
+
             document.getElementById('btnConnectSse').disabled = false;
             document.getElementById('btnDisconnectSse').disabled = true;
         }
