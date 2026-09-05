@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart QR Access — Client Live Integration & Testing Portal</title>
+    <title>Smart QR2 Access — Client Live Integration & Testing Portal</title>
     <!-- Google Fonts & QRCode.js Library -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -810,7 +810,7 @@ eventSource.addEventListener(<span style="color:#34D399">'token_used'</span>, (e
             logToTerminal(`Connecting to SSE stream at ${sseUrl}...`);
 
             try {
-                eventSource = new EventSource(sseUrl, { withCredentials: true });
+                eventSource = new EventSource(sseUrl);
 
                 eventSource.onopen = function () {
                     dot.className = 'status-dot status-on';
