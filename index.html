@@ -793,15 +793,28 @@ eventSource.addEventListener(<span style="color:#34D399">'token_used'</span>, (e
 
         // ── 2. REAL-TIME SSE STREAM (Fetch ReadableStream for Ngrok Header Support) ──
         let sseAbortController = null;
+        let sseLastId = 0;
+        let isExplicitDisconnect = false;
 
         function handleSseEvent(eventName, dataStr) {
-            if (eventName === 'connected') {
-                logToTerminal('🟢 Handshake confirmed by SSE server.', 'success');
+            if (eventName === 'connected' || eventName === 'reconnect') {
+                try {
+                    const p = JSON.parse(dataStr);
+                    if (p.last_id !== undefined && p.last_id !== null) {
+                        sseLastId = parseInt(p.last_id, 10) || 0;
+                    }
+                } catch(e){}
+                if (eventName === 'connected') {
+                    logToTerminal('🟢 Handshake confirmed by SSE server.', 'success');
+                }
                 return;
             }
 
             try {
                 const payload = JSON.parse(dataStr);
+                if (payload.id) {
+                    sseLastId = parseInt(payload.id, 10) || sseLastId;
+                }
                 if (payload.error) {
                     logToTerminal(`❌ SSE Server Error: ${payload.error}`, 'error');
                     return;
@@ -825,6 +838,7 @@ eventSource.addEventListener(<span style="color:#34D399">'token_used'</span>, (e
             const apiKey  = document.getElementById('api_key').value.trim();
 
             stopSseConnection();
+            isExplicitDisconnect = false;
 
             const dot  = document.getElementById('sseStatusDot');
             const text = document.getElementById('sseStatusText');
@@ -832,108 +846,111 @@ eventSource.addEventListener(<span style="color:#34D399">'token_used'</span>, (e
             dot.className  = 'status-dot status-connecting';
             text.innerText = 'Connecting...';
 
-            let sseUrl = `${baseUrl}/developer/events`;
-            const params = [];
-            if (apiKey) params.push(`api_key=${encodeURIComponent(apiKey)}`);
-            params.push(`ngrok-skip-browser-warning=1`);
-
-            sseUrl += `?${params.join('&')}`;
-
-            logToTerminal(`Connecting to SSE stream at ${sseUrl}...`);
+            logToTerminal(`Connecting to SSE stream...`);
 
             const controller = new AbortController();
             sseAbortController = controller;
 
-            try {
-                const response = await fetch(sseUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'text/event-stream',
-                        'ngrok-skip-browser-warning': '1'
-                    },
-                    signal: controller.signal
-                });
+            document.getElementById('btnConnectSse').disabled = true;
+            document.getElementById('btnDisconnectSse').disabled = false;
 
-                if (!response.ok) {
-                    let errMsg = `HTTP Status ${response.status}`;
-                    try {
-                        const errJson = await response.json();
-                        if (errJson.message || errJson.error) errMsg = errJson.message || errJson.error;
-                    } catch(e) {}
-                    dot.className  = 'status-dot status-off';
-                    text.innerText = 'Error / Unauthorized';
-                    logToTerminal(`❌ SSE Connection Failed: ${errMsg}`, 'error');
-                    return;
-                }
+            while (!isExplicitDisconnect && !controller.signal.aborted) {
+                let sseUrl = `${baseUrl}/developer/events?last_id=${sseLastId}`;
+                if (apiKey) sseUrl += `&api_key=${encodeURIComponent(apiKey)}`;
+                sseUrl += `&ngrok-skip-browser-warning=1`;
 
-                const contentType = response.headers.get('content-type') || '';
-                if (!contentType.includes('text/event-stream')) {
-                    dot.className  = 'status-dot status-off';
-                    text.innerText = 'Ngrok Interstitial / HTML';
-                    logToTerminal(`❌ Ngrok returned HTML warning page (${contentType}) instead of SSE stream.<br>👉 <strong>Fix:</strong> Click <strong>"⚡ Authorize Ngrok (1-Click)"</strong> button above, click "Visit Site" in the new tab once, then click <strong>"Connect Stream"</strong> again!`, 'error');
-                    return;
-                }
+                try {
+                    const response = await fetch(sseUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'text/event-stream',
+                            'ngrok-skip-browser-warning': '1'
+                        },
+                        signal: controller.signal
+                    });
 
-                dot.className  = 'status-dot status-on';
-                text.innerText = 'Connected 🟢';
-                logToTerminal('🟢 Connected to SSE Stream! Listening for live gate events...', 'success');
-                document.getElementById('btnConnectSse').disabled = true;
-                document.getElementById('btnDisconnectSse').disabled = false;
+                    if (!response.ok) {
+                        let errMsg = `HTTP Status ${response.status}`;
+                        try {
+                            const errJson = await response.json();
+                            if (errJson.message || errJson.error) errMsg = errJson.message || errJson.error;
+                        } catch(e) {}
+                        dot.className  = 'status-dot status-off';
+                        text.innerText = 'Error / Unauthorized';
+                        logToTerminal(`❌ SSE Connection Failed: ${errMsg}`, 'error');
+                        break;
+                    }
 
-                const reader  = response.body.getReader();
-                const decoder = new TextDecoder('utf-8');
-                let buffer    = '';
+                    const contentType = response.headers.get('content-type') || '';
+                    if (!contentType.includes('text/event-stream')) {
+                        dot.className  = 'status-dot status-off';
+                        text.innerText = 'Ngrok Interstitial / HTML';
+                        logToTerminal(`❌ Ngrok returned HTML warning page (${contentType}) instead of SSE stream.<br>👉 <strong>Fix:</strong> Click <strong>"⚡ Authorize Ngrok (1-Click)"</strong> button above, click "Visit Site" in the new tab once, then click <strong>"Connect Stream"</strong> again!`, 'error');
+                        break;
+                    }
 
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
+                    dot.className  = 'status-dot status-on';
+                    text.innerText = 'Connected 🟢';
 
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n\n');
-                    buffer = lines.pop() || ''; // keep trailing incomplete chunk
+                    const reader  = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    let buffer    = '';
 
-                    for (const chunk of lines) {
-                        if (!chunk.trim()) continue;
+                    while (!isExplicitDisconnect && !controller.signal.aborted) {
+                        const { value, done } = await reader.read();
+                        if (done) {
+                            // 25-second stream window completed, loop will auto-reconnect cleanly
+                            break;
+                        }
 
-                        let eventName = 'message';
-                        let dataStr   = '';
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n\n');
+                        buffer = lines.pop() || ''; // keep trailing incomplete chunk
 
-                        for (const line of chunk.split('\n')) {
-                            if (line.startsWith('event:')) {
-                                eventName = line.substring(6).trim();
-                            } else if (line.startsWith('data:')) {
-                                dataStr += line.substring(5).trim();
+                        for (const chunk of lines) {
+                            if (!chunk.trim()) continue;
+
+                            let eventName = 'message';
+                            let dataStr   = '';
+
+                            for (const line of chunk.split('\n')) {
+                                if (line.startsWith('event:')) {
+                                    eventName = line.substring(6).trim();
+                                } else if (line.startsWith('data:')) {
+                                    dataStr += line.substring(5).trim();
+                                }
+                            }
+
+                            if (dataStr) {
+                                handleSseEvent(eventName, dataStr);
                             }
                         }
+                    }
 
-                        if (dataStr) {
-                            handleSseEvent(eventName, dataStr);
-                        }
+                } catch (err) {
+                    if (isExplicitDisconnect || err.name === 'AbortError') {
+                        logToTerminal('Disconnected from SSE stream.');
+                        break;
+                    } else {
+                        logToTerminal(`⚠️ SSE Stream reconnecting...`, 'warn');
+                        await new Promise(r => setTimeout(r, 1000));
                     }
                 }
+            }
 
-            } catch (err) {
-                if (err.name === 'AbortError') {
-                    logToTerminal('Disconnected from SSE stream.');
-                } else {
-                    dot.className  = 'status-dot status-off';
-                    text.innerText = 'Disconnected / Error';
-                    logToTerminal(`⚠️ SSE connection interrupted or requires session cookie. Auto-reconnecting...`, 'warn');
-                }
-            } finally {
+            if (!isExplicitDisconnect) {
+                dot.className  = 'status-dot status-off';
+                text.innerText = 'Disconnected';
                 document.getElementById('btnConnectSse').disabled = false;
                 document.getElementById('btnDisconnectSse').disabled = true;
             }
         }
 
         function stopSseConnection() {
+            isExplicitDisconnect = true;
             if (sseAbortController) {
                 sseAbortController.abort();
                 sseAbortController = null;
-            }
-            if (eventSource) {
-                eventSource.close();
-                eventSource = null;
             }
             const dot  = document.getElementById('sseStatusDot');
             const text = document.getElementById('sseStatusText');
