@@ -1,0 +1,1 @@
+# Qr_scanner_client_side_test
