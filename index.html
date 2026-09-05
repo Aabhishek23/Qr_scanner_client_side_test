@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="hi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart QR Access — Client Live Integration & Testing Portal</title>
+    <!-- Google Fonts & QRCode.js Library -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0B0F19;
+            --bg-card: rgba(18, 26, 44, 0.95);
+            --bg-input: #070B14;
+            --border: rgba(255, 255, 255, 0.08);
+            --teal: #0D9488;
+            --teal-l: #14B8A6;
+            --blue: #3B82F6;
+            --purple: #8B5CF6;
+            --red: #EF4444;
+            --amber: #F59E0B;
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+            --radius: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image:
+                radial-gradient(ellipse at 10% 10%, rgba(13, 148, 136, 0.12) 0%, transparent 45%),
+                radial-gradient(ellipse at 90% 90%, rgba(59, 130, 246, 0.12) 0%, transparent 45%),
+                radial-gradient(ellipse at 50% 50%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
+            background-attachment: fixed;
+            line-height: 1.6;
+        }
+
+        header {
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+        }
+
+        .brand-icon {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, var(--teal), var(--blue));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: #FFF;
+            box-shadow: 0 0 16px rgba(13, 148, 136, 0.3);
+        }
+
+        .brand-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .brand-sub {
+            font-size: 0.72rem;
+            color: var(--teal-l);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-gh {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 20px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        main {
+            flex: 1;
+            max-width: 1250px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.75rem;
+        }
+
+        /* ── HERO DEPLOYMENT BANNER ── */
+        .deploy-banner {
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.15), rgba(59, 130, 246, 0.15));
+            border: 1px solid rgba(20, 184, 166, 0.25);
+            border-radius: var(--radius);
+            padding: 1.5rem 1.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .deploy-info h2 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #FFF;
+            margin-bottom: 0.3rem;
+        }
+
+        .deploy-info p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .btn-gh-guide {
+            padding: 0.65rem 1.2rem;
+            background: linear-gradient(135deg, var(--teal), var(--blue));
+            color: #FFF;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 14px rgba(13, 148, 136, 0.3);
+            transition: all 0.2s;
+        }
+
+        .btn-gh-guide:hover {
+            transform: translateY(-1px);
+            opacity: 0.95;
+        }
+
+        /* ── GRID & CARDS ── */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.15rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.85rem;
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tag-pill {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tag-post {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60A5FA;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .tag-sse {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34D399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input,
+        select {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.7rem 0.9rem;
+            color: var(--text-main);
+            font-size: 0.88rem;
+            font-family: 'JetBrains Mono', monospace;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        input:focus {
+            border-color: var(--teal-l);
+            box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--teal), var(--blue));
+            color: #FFF;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.25rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.95;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-green {
+            background: linear-gradient(135deg, #10B981, #059669);
+        }
+
+        .btn-red {
+            background: linear-gradient(135deg, var(--red), #DC2626);
+        }
+
+        .btn-amber {
+            background: linear-gradient(135deg, var(--amber), #D97706);
+        }
+
+        .qr-display-box {
+            background: #FFF;
+            padding: 1.25rem;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0.5rem 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        #qrcode img,
+        #qrcode canvas {
+            display: block;
+            margin: 0 auto;
+        }
+
+        .token-info {
+            background: var(--bg-input);
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            padding: 0.85rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.78rem;
+            word-break: break-all;
+            color: var(--teal-l);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-off {
+            background: var(--red);
+            box-shadow: 0 0 8px var(--red);
+        }
+
+        .status-on {
+            background: #10B981;
+            box-shadow: 0 0 8px #10B981;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-connecting {
+            background: var(--amber);
+            box-shadow: 0 0 8px var(--amber);
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.6;
+                transform: scale(1.15);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .terminal-box {
+            background: #04060A;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.85rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.75rem;
+            height: 250px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .log-entry {
+            line-height: 1.4;
+            padding: 5px 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 3px solid var(--blue);
+        }
+
+        .log-entry.success {
+            border-left-color: #10B981;
+            background: rgba(16, 185, 129, 0.06);
+        }
+
+        .log-entry.error {
+            border-left-color: var(--red);
+            background: rgba(239, 68, 68, 0.06);
+        }
+
+        .log-entry.warn {
+            border-left-color: var(--amber);
+            background: rgba(245, 158, 11, 0.06);
+        }
+
+        .log-time {
+            color: var(--text-muted);
+            margin-right: 6px;
+            font-size: 0.7rem;
+        }
+
+        pre.code-block {
+            background: #04060A;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.78rem;
+            color: #A5B4FC;
+            line-height: 1.5;
+        }
+
+        /* ── MODAL GUIDES ── */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            padding: 1rem;
+        }
+
+        .modal-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            max-width: 650px;
+            width: 100%;
+            padding: 1.75rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #FFF;
+        }
+
+        .btn-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── HEADER ── -->
+    <header>
+        <a href="#" class="brand">
+            <div class="brand-icon">QR</div>
+            <div>
+                <div class="brand-title">Client Integration & Testing Website</div>
+                <div class="brand-sub">HTTPS API & SSE Live Event Tester</div>
+            </div>
+        </a>
+        <div class="badge-gh">
+            <span>🌐 GitHub Pages Ready</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- ── HERO DEPLOYMENT BANNER ── -->
+        <div class="deploy-banner">
+            <div class="deploy-info">
+                <h2>🚀 Website Hosting / GitHub Pages Setup Guide</h2>
+                <p>Is HTML page ko aap apne GitHub repository me <code>index.html</code> ke roop me upload karke free
+                    GitHub Pages par live test kar sakte hain!</p>
+            </div>
+            <button class="btn-gh-guide" onclick="openModal()">📖 Deployment Steps (Kaise Host Karein?)</button>
+        </div>
+
+        <!-- ── 1. GLOBAL CONNECTION SETTINGS ── -->
+        <div class="card full-width">
+            <div class="card-header">
+                <div class="card-title">⚙️ Step 1: Server Connection Settings</div>
+                <span style="font-size:0.75rem;color:var(--teal-l);" id="saveStatus">Auto-saved in browser</span>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="server_url">Backend API Base URL (HTTPS Server)</label>
+                    <input type="text" id="server_url" value="http://localhost/Qr_scanner/public"
+                        placeholder="e.g. https://your-domain.com/Qr_scanner/public" oninput="saveConfig()">
+                </div>
+                <div class="form-group">
+                    <label for="api_key">Developer API Key</label>
+                    <input type="text" id="api_key" value="qr_demo123456"
+                        placeholder="Paste your Developer API Key (qr_xxxxxxxxxxxx)" oninput="saveConfig()">
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <!-- ── 2. HTTPS REST API TOKEN ISSUE CARD ── -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        🎟️ 2. HTTPS REST API Test
+                    </div>
+                    <span class="tag-pill tag-post">POST /api/v1/tokens/issue</span>
+                </div>
+
+                <p style="font-size:0.83rem; color:var(--text-muted);">
+                    Apni website se visitor ke liye dynamic QR Token request karein over HTTPS API.
+                </p>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ttl_minutes">Validity (Minutes)</label>
+                        <input type="number" id="ttl_minutes" value="60" min="1" max="1440">
+                    </div>
+                    <div class="form-group">
+                        <label for="max_uses">Max Allowed Scans</label>
+                        <input type="number" id="max_uses" value="1" min="1" max="100">
+                    </div>
+                </div>
+
+                <button class="btn" id="btnIssueToken" onclick="issueToken()">✨ Issue QR Token (HTTPS API)</button>
+
+                <!-- QR Code Output -->
+                <div id="qrResultContainer" style="display:none;">
+                    <div class="qr-display-box">
+                        <div id="qrcode"></div>
+                    </div>
+                    <div class="token-info">
+                        <strong>Issued Token:</strong> <span id="lblToken">...</span><br>
+                        <strong>Expires At:</strong> <span id="lblExpires">...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── 3. SSE REAL-TIME EVENT STREAM CARD ── -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        📡 3. SSE Real-time Stream Test
+                    </div>
+                    <span class="tag-pill tag-sse">GET /developer/events</span>
+                </div>
+
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <p style="font-size:0.83rem; color:var(--text-muted);">
+                        Gate par physical scan hote hi bina page refresh kiye Push Alert receive karein.
+                    </p>
+                    <div style="display:flex; align-items:center; gap:6px; font-size:0.8rem; flex-shrink:0;">
+                        <span class="status-dot status-off" id="sseStatusDot"></span>
+                        <span id="sseStatusText">Disconnected</span>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="btn btn-green" style="flex:1;" id="btnConnectSse" onclick="startSseConnection()">🔌
+                        Connect Stream</button>
+                    <button class="btn btn-red" id="btnDisconnectSse" onclick="stopSseConnection()"
+                        disabled>Disconnect</button>
+                    <button class="btn btn-amber" id="btnSimulateScan" onclick="simulateGateScan()"
+                        title="Simulate physical scanner validating the QR token">🧪 Simulate Scan Event</button>
+                </div>
+
+                <div class="terminal-box" id="terminalLogs">
+                    <div class="log-entry">
+                        <span class="log-time">[System]</span> Stream Terminal Ready. Click "Connect Stream" to listen
+                        for live SSE scan alerts.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 4. CODE EXAMPLES ── -->
+        <div class="card full-width">
+            <div class="card-header">
+                <div class="card-title">💻 Code Examples (Aapki Website me lagane ke liye)</div>
+            </div>
+            <pre class="code-block"><code><span style="color:#64748B">// 1. Generate Token over HTTPS API</span>
+<span style="color:#60A5FA">async function</span> <span style="color:#F472B6">issueQr</span>() {
+    <span style="color:#60A5FA">const</span> res = <span style="color:#60A5FA">await</span> fetch(<span style="color:#34D399">'https://your-domain.com/Qr_scanner/public/api/v1/tokens/issue'</span>, {
+        method: <span style="color:#34D399">'POST'</span>,
+        headers: { <span style="color:#34D399">'Content-Type'</span>: <span style="color:#34D399">'application/json'</span> },
+        body: JSON.stringify({ api_key: <span style="color:#34D399">'YOUR_API_KEY'</span>, ttl_minutes: 60, max_uses: 1 })
+    });
+    <span style="color:#60A5FA">const</span> data = <span style="color:#60A5FA">await</span> res.json();
+    console.log(<span style="color:#34D399">'Generated Token:'</span>, data.data.token);
+}
+
+<span style="color:#64748B">// 2. Real-time Push Listener over SSE</span>
+<span style="color:#60A5FA">const</span> eventSource = <span style="color:#60A5FA">new</span> EventSource(<span style="color:#34D399">'https://your-domain.com/Qr_scanner/public/developer/events'</span>);
+eventSource.addEventListener(<span style="color:#34D399">'token_used'</span>, (event) =&gt; {
+    <span class="color:#60A5FA">const</span> alertData = JSON.parse(event.data);
+    alert(<span style="color:#34D399">`🚨 Gate Scanned! Token: ${alertData.data.token} Status: ${alertData.data.result}`</span>);
+});</code></pre>
+        </div>
+    </main>
+
+    <!-- ── MODAL: GITHUB PAGES DEPLOYMENT GUIDE ── -->
+    <div class="modal-overlay" id="guideModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title">🌐 GitHub Pages par Kaise Host Karein? (Step-by-Step)</div>
+                <button class="btn-close" onclick="closeModal()">✕</button>
+            </div>
+            <div
+                style="font-size:0.88rem; color:#CBD5E1; display:flex; flex-direction:column; gap:1rem; line-height:1.6;">
+                <div>
+                    <strong>Step 1: File Copy Karein</strong><br>
+                    Is HTML file (`client_template/index.html`) ki puri code copy kar lein.
+                </div>
+                <div>
+                    <strong>Step 2: GitHub me naya Repository banayein</strong><br>
+                    GitHub par <code>qr-client-test</code> name se public repository create karein aur
+                    <code>index.html</code> naam se file commit karein.
+                </div>
+                <div>
+                    <strong>Step 3: GitHub Pages Enable karein</strong><br>
+                    Repository Settings &rarr; <strong>Pages</strong> par jayein. Branch me <code>main</code> select
+                    karke Save karein.
+                </div>
+                <div>
+                    <strong>Step 4: Live URL Open Karein</strong><br>
+                    Aapko <code>https://your-username.github.io/qr-client-test/</code> URL milega. Us URL ko open karke
+                    Server Base URL me apne live domain/IP enter karke test karein!
+                </div>
+            </div>
+            <div style="margin-top:1.5rem; text-align:right;">
+                <button class="btn" onclick="closeModal()">Samajh Gaya (Close)</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        Smart QR Access System &bull; Client Live Testing Portal &bull; Designed for Client Developers
+    </footer>
+
+    <script>
+        let eventSource = null;
+        let lastIssuedToken = '';
+
+        // Auto-load config from localStorage on start
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedUrl = localStorage.getItem('qr_test_server_url');
+            const savedKey = localStorage.getItem('qr_test_api_key');
+            if (savedUrl) document.getElementById('server_url').value = savedUrl;
+            if (savedKey) document.getElementById('api_key').value = savedKey;
+        });
+
+        function saveConfig() {
+            const url = document.getElementById('server_url').value.trim();
+            const key = document.getElementById('api_key').value.trim();
+            localStorage.setItem('qr_test_server_url', url);
+            localStorage.setItem('qr_test_api_key', key);
+        }
+
+        function openModal() { document.getElementById('guideModal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('guideModal').style.display = 'none'; }
+
+        function logToTerminal(message, type = 'info') {
+            const container = document.getElementById('terminalLogs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+
+            const timeStr = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${timeStr}]</span> ${message}`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // ── 1. ISSUE TOKEN (HTTPS REST API) ─────────────────────────────
+        async function issueToken() {
+            const baseUrl = document.getElementById('server_url').value.replace(/\/+$/, '');
+            const apiKey = document.getElementById('api_key').value.trim();
+            const ttlMinutes = parseInt(document.getElementById('ttl_minutes').value) || 60;
+            const maxUses = parseInt(document.getElementById('max_uses').value) || 1;
+
+            if (!apiKey) {
+                alert("Please enter your Developer API Key!");
+                return;
+            }
+
+            const btn = document.getElementById('btnIssueToken');
+            btn.disabled = true;
+            btn.innerText = "Requesting Token over HTTPS...";
+
+            try {
+                const endpoint = `${baseUrl}/api/v1/tokens/issue`;
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        api_key: apiKey,
+                        ttl_minutes: ttlMinutes,
+                        max_uses: maxUses
+                    })
+                });
+
+                const json = await response.json();
+                if (response.ok && json.status === 'SUCCESS') {
+                    const tokenData = json.data;
+                    lastIssuedToken = tokenData.token;
+
+                    document.getElementById('lblToken').innerText = tokenData.token;
+                    document.getElementById('lblExpires').innerText = tokenData.expires_at || 'N/A';
+
+                    // Render QR Code
+                    const qrDiv = document.getElementById('qrcode');
+                    qrDiv.innerHTML = '';
+                    if (window.QRCode) {
+                        new QRCode(qrDiv, {
+                            text: tokenData.token,
+                            width: 160,
+                            height: 160,
+                            colorDark: "#0F172A",
+                            colorLight: "#FFFFFF",
+                            correctLevel: QRCode.CorrectLevel.H
+                        });
+                    }
+
+                    document.getElementById('qrResultContainer').style.display = 'block';
+                    logToTerminal(`✅ [HTTPS API Success] QR Token Created: <strong>${tokenData.token}</strong>`, 'success');
+                } else {
+                    logToTerminal(`❌ [HTTPS API Error] ${json.message || 'Failed to issue token'}`, 'error');
+                    alert(`Error: ${json.message || 'Failed to issue token'}`);
+                }
+            } catch (err) {
+                logToTerminal(`❌ [Network Error] Could not connect to ${baseUrl}/api/v1/tokens/issue: ${err.message}`, 'error');
+                alert(`Network error connecting to API: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "✨ Issue QR Token (HTTPS API)";
+            }
+        }
+
+        // ── 2. REAL-TIME SSE STREAM ────────────────────────────────────
+        function startSseConnection() {
+            const baseUrl = document.getElementById('server_url').value.replace(/\/+$/, '');
+            const sseUrl = `${baseUrl}/developer/events`;
+
+            stopSseConnection();
+
+            const dot = document.getElementById('sseStatusDot');
+            const text = document.getElementById('sseStatusText');
+
+            dot.className = 'status-dot status-connecting';
+            text.innerText = 'Connecting...';
+            logToTerminal(`Connecting to SSE stream at ${sseUrl}...`);
+
+            try {
+                eventSource = new EventSource(sseUrl, { withCredentials: true });
+
+                eventSource.onopen = function () {
+                    dot.className = 'status-dot status-on';
+                    text.innerText = 'Connected 🟢';
+                    logToTerminal('🟢 Connected to SSE Stream! Listening for live gate events...', 'success');
+                    document.getElementById('btnConnectSse').disabled = true;
+                    document.getElementById('btnDisconnectSse').disabled = false;
+                };
+
+                eventSource.addEventListener('connected', function (e) {
+                    logToTerminal('🟢 Handshake confirmed by SSE server.', 'success');
+                });
+
+                eventSource.addEventListener('token_used', function (e) {
+                    try {
+                        const payload = JSON.parse(e.data);
+                        const d = payload.data || {};
+                        logToTerminal(`🚨 <strong>GATE SCAN EVENT RECEIVED:</strong> Token [${d.token}] scanned at device [${d.device_id || 'GATE_01'}] Result: <strong>${d.result || 'ALLOWED'}</strong>`, 'success');
+                    } catch (err) {
+                        logToTerminal(`🚨 Live SSE Event: ${e.data}`, 'success');
+                    }
+                });
+
+                eventSource.addEventListener('gate_scan', function (e) {
+                    try {
+                        const payload = JSON.parse(e.data);
+                        logToTerminal(`🚨 <strong>GATE SCAN DETECTED:</strong> Token: ${payload.data.token || 'N/A'} Status: ${payload.data.status || 'SCANNED'}`, 'success');
+                    } catch (err) {
+                        logToTerminal(`🚨 Gate Scan Event: ${e.data}`, 'success');
+                    }
+                });
+
+                eventSource.onerror = function (err) {
+                    dot.className = 'status-dot status-off';
+                    text.innerText = 'Retrying / Error';
+                    logToTerminal('⚠️ SSE connection interrupted or requires session cookie. Auto-reconnecting...', 'warn');
+                };
+
+            } catch (err) {
+                dot.className = 'status-dot status-off';
+                text.innerText = 'Failed';
+                logToTerminal(`❌ SSE Initialization Error: ${err.message}`, 'error');
+            }
+        }
+
+        function stopSseConnection() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+                const dot = document.getElementById('sseStatusDot');
+                const text = document.getElementById('sseStatusText');
+                dot.className = 'status-dot status-off';
+                text.innerText = 'Disconnected';
+                logToTerminal('Disconnected from SSE stream.');
+            }
+            document.getElementById('btnConnectSse').disabled = false;
+            document.getElementById('btnDisconnectSse').disabled = true;
+        }
+
+        // ── 3. SIMULATE GATE SCAN FOR TESTING ──────────────────────────
+        async function simulateGateScan() {
+            const tokenToValidate = lastIssuedToken || prompt("Enter Token String to Simulate Scan:", "tok_demo123");
+            if (!tokenToValidate) return;
+
+            const baseUrl = document.getElementById('server_url').value.replace(/\/+$/, '');
+            logToTerminal(`🧪 Simulating physical gate scanner scanning token [${tokenToValidate}]...`);
+
+            try {
+                // Call API validate endpoint to trigger scanner action
+                const response = await fetch(`${baseUrl}/api/v1/tokens/validate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: tokenToValidate, device_id: 'TEST_GATE_01' })
+                });
+
+                const json = await response.json();
+                logToTerminal(`🧪 Scan Validation Result: ${json.status || 'PROCESSED'}. If your SSE stream is connected, watch for live alert above!`, 'warn');
+            } catch (err) {
+                logToTerminal(`🧪 Simulation request sent. Note: Validate endpoint may require HMAC headers if enabled.`, 'warn');
+            }
+        }
+    </script>
+</body>
+
+</html>
