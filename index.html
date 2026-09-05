@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart QR2 Access — Client Live Integration & Testing Portal</title>
+    <title>Smart QR Access — Client Live Integration & Testing Portal</title>
     <!-- Google Fonts & QRCode.js Library -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -616,6 +616,8 @@
                         disabled>Disconnect</button>
                     <button class="btn btn-amber" id="btnSimulateScan" onclick="simulateGateScan()"
                         title="Simulate physical scanner validating the QR token">🧪 Simulate Scan Event</button>
+                    <button class="btn" style="background:linear-gradient(135deg,#8B5CF6,#6366F1);" id="btnNgrokBypass" onclick="openNgrokBypass()"
+                        title="Click once to authorize Ngrok free tier tunnel in browser">⚡ Authorize Ngrok (1-Click)</button>
                 </div>
 
                 <div class="terminal-box" id="terminalLogs">
@@ -867,8 +869,8 @@ eventSource.addEventListener(<span style="color:#34D399">'token_used'</span>, (e
                 const contentType = response.headers.get('content-type') || '';
                 if (!contentType.includes('text/event-stream')) {
                     dot.className  = 'status-dot status-off';
-                    text.innerText = 'MIME Error';
-                    logToTerminal(`❌ Expected text/event-stream but server returned ${contentType}.`, 'error');
+                    text.innerText = 'Ngrok Interstitial / HTML';
+                    logToTerminal(`❌ Ngrok returned HTML warning page (${contentType}) instead of SSE stream.<br>👉 <strong>Fix:</strong> Click <strong>"⚡ Authorize Ngrok (1-Click)"</strong> button above, click "Visit Site" in the new tab once, then click <strong>"Connect Stream"</strong> again!`, 'error');
                     return;
                 }
 
@@ -916,7 +918,7 @@ eventSource.addEventListener(<span style="color:#34D399">'token_used'</span>, (e
                 } else {
                     dot.className  = 'status-dot status-off';
                     text.innerText = 'Disconnected / Error';
-                    logToTerminal(`⚠️ SSE Connection Interrupted: ${err.message}`, 'warn');
+                    logToTerminal(`⚠️ SSE connection interrupted or requires session cookie. Auto-reconnecting...`, 'warn');
                 }
             } finally {
                 document.getElementById('btnConnectSse').disabled = false;
@@ -940,6 +942,14 @@ eventSource.addEventListener(<span style="color:#34D399">'token_used'</span>, (e
 
             document.getElementById('btnConnectSse').disabled = false;
             document.getElementById('btnDisconnectSse').disabled = true;
+        }
+
+        function openNgrokBypass() {
+            const baseUrl = document.getElementById('server_url').value.replace(/\/+$/, '');
+            const apiKey  = document.getElementById('api_key').value.trim();
+            const bypassUrl = `${baseUrl}/developer/events?api_key=${encodeURIComponent(apiKey)}&ngrok-skip-browser-warning=true`;
+            window.open(bypassUrl, '_blank');
+            logToTerminal(`⚡ Opening Ngrok URL in new tab: ${bypassUrl}<br>💡 <strong>Action Required:</strong> If Ngrok warning screen appears, click "Visit Site" in that tab, then return here and click <strong>"Connect Stream"</strong>!`, 'warn');
         }
 
         // ── 3. SIMULATE GATE SCAN FOR TESTING ──────────────────────────
