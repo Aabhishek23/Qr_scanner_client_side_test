@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart QR2 Access — Client Live Integration & Testing Portal</title>
+    <title>Smart QR Access — Client Live Integration & Testing Portal</title>
     <!-- Google Fonts & QRCode.js Library -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -818,6 +818,15 @@ eventSource.addEventListener(<span style="color:#34D399">'token_used'</span>, (e
                     logToTerminal('🟢 Connected to SSE Stream! Listening for live gate events...', 'success');
                     document.getElementById('btnConnectSse').disabled = true;
                     document.getElementById('btnDisconnectSse').disabled = false;
+                };
+
+                eventSource.onmessage = function (e) {
+                    try {
+                        const payload = JSON.parse(e.data);
+                        if (payload.error) {
+                            logToTerminal(`❌ SSE Server Error: ${payload.error}`, 'error');
+                        }
+                    } catch(err) {}
                 };
 
                 eventSource.addEventListener('connected', function (e) {
