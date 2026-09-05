@@ -792,7 +792,13 @@ eventSource.addEventListener(<span style="color:#34D399">'token_used'</span>, (e
         // ── 2. REAL-TIME SSE STREAM ────────────────────────────────────
         function startSseConnection() {
             const baseUrl = document.getElementById('server_url').value.replace(/\/+$/, '');
-            const sseUrl = `${baseUrl}/developer/events`;
+            const apiKey  = document.getElementById('api_key').value.trim();
+
+            const params = [];
+            if (apiKey) params.push(`api_key=${encodeURIComponent(apiKey)}`);
+            params.push(`ngrok-skip-browser-warning=true`);
+
+            const sseUrl = `${baseUrl}/developer/events?${params.join('&')}`;
 
             stopSseConnection();
 
